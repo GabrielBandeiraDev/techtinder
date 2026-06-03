@@ -2,6 +2,7 @@ from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.application.services.user_service import UserService
 from app.domain.exceptions import ChatRequiresMatchError, ConflictError, NotFoundError
 from app.infrastructure.db.models.like import Like, Pass
 from app.infrastructure.db.models.match import Conversation, Match
