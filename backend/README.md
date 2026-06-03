@@ -90,6 +90,12 @@ Se **Root Directory** estiver vazio (deploy na raiz do repo), use:
 **Environment → `PYTHON_VERSION`:** `3.12.8` (evita Python 3.14 padrão do Render).
 
 Erro `No module named 'app'` = Root Directory não é `backend` ou start rodando fora dessa pasta.
+
+Erro `Network is unreachable` no **build** = Alembic rodando no Build Command. Use só `bash render_build.sh` (sem `alembic` no build). Migrações rodam no start.
+
+Se já rodou `supabase/schema.sql` no Supabase, as tabelas existem; o `alembic upgrade head` no start pode ser redundante ou exigir `alembic stamp head` uma vez.
+
+Erro `Network is unreachable` no **build** = Alembic tentou o Supabase durante o build. Use `bash render_build.sh` (sem migração no build); migrações rodam no **start** via `render_start.sh`.
 | **Health Check Path** | `/health` |
 
 Ou use o blueprint na raiz do repo: [`render.yaml`](../render.yaml).
