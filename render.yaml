@@ -1,0 +1,30 @@
+# Blueprint Render — monorepo techtinder
+# https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: techtinder-api
+    runtime: python
+    pythonVersion: "3.12.8"
+    region: oregon
+    plan: free
+    rootDir: backend
+    buildCommand: bash render_build.sh
+    startCommand: bash render_start.sh
+    healthCheckPath: /health
+    envVars:
+      - key: DEBUG
+        value: "false"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: SUPABASE_PROJECT_ID
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_DB_PASSWORD
+        sync: false
+      - key: SUPABASE_USE_POOLER
+        value: "true"
+      - key: SUPABASE_POOLER_HOST
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false

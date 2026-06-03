@@ -70,3 +70,43 @@ Formatos: JPG, JPEG, PNG, WEBP. Validação de extensão, MIME e tamanho (`MAX_U
 ## Variáveis de ambiente
 
 Ver `.env.example` — Supabase: `SUPABASE_PROJECT_ID`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_DB_PASSWORD`.
+
+## Deploy no Render
+
+Repositório: `GabrielBandeiraDev/techtinder` (monorepo com pasta `backend/`).
+
+| Campo no painel | Valor |
+|-----------------|--------|
+| **Language** | Python 3 |
+| **Root Directory** | `backend` ← obrigatório no monorepo |
+| **Build Command** | `bash render_build.sh` |
+| **Start Command** | `bash render_start.sh` |
+
+Se **Root Directory** estiver vazio (deploy na raiz do repo), use:
+
+| **Build Command** | `bash backend/render_build.sh` |
+| **Start Command** | `bash backend/render_start.sh` |
+
+**Environment → `PYTHON_VERSION`:** `3.12.8` (evita Python 3.14 padrão do Render).
+
+Erro `No module named 'app'` = Root Directory não é `backend` ou start rodando fora dessa pasta.
+| **Health Check Path** | `/health` |
+
+Ou use o blueprint na raiz do repo: [`render.yaml`](../render.yaml).
+
+### Variáveis obrigatórias no Render
+
+| Variável | Exemplo / nota |
+|----------|----------------|
+| `SECRET_KEY` | string longa aleatória (JWT do app, não a secret do Supabase) |
+| `SUPABASE_PROJECT_ID` | id do projeto |
+| `SUPABASE_URL` | `https://{id}.supabase.co` |
+| `SUPABASE_DB_PASSWORD` | senha do banco (Dashboard → Database) |
+| `SUPABASE_USE_POOLER` | `true` |
+| `SUPABASE_POOLER_HOST` | host do pooler Transaction (porta 6543) |
+| `CORS_ORIGINS` | URL do frontend na Vercel, ex. `https://techtinder.vercel.app` |
+| `DEBUG` | `false` |
+
+Opcional: `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (futuro Storage).
+
+Depois do deploy, no frontend (Vercel) defina `VITE_API_URL=https://techtinder-api.onrender.com` (URL que o Render mostrar).
