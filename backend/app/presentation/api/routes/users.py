@@ -7,7 +7,7 @@ from app.application.services.user_service import UserService
 from app.config import Settings, get_settings
 from app.infrastructure.db.models.user import User
 from app.infrastructure.db.session import get_db
-from app.infrastructure.storage.file_upload import delete_upload_file, validate_and_save_image
+from app.infrastructure.storage.file_upload import read_validated_image
 from app.presentation.api.deps import get_current_user, get_current_user_full, user_to_public
 from app.presentation.schemas.user import (
     UserMeUpdate,
@@ -84,8 +84,13 @@ async def upload_photo(
     session: Annotated[AsyncSession, Depends(get_db)],
     settings: Annotated[Settings, Depends(get_settings)],
 ):
-    url = await validate_and_save_image(file, settings)
-    photo = await UserService(session).add_photo(current.id, url)
+    content, content_type, _ext = await read_validated_image(file, settings)
+    photo = await UserService(session).add_photo_blob(
+        current.id,
+        content,
+        content_type,
+        kind="gallery",
+    )
     return {"id": photo.id, "photo_url": photo.photo_url, "position": photo.position}
 
 
@@ -94,11 +99,9 @@ async def delete_photo(
     photo_id: int,
     current: Annotated[User, Depends(get_current_user)],
     session: Annotated[AsyncSession, Depends(get_db)],
-    settings: Annotated[Settings, Depends(get_settings)],
 ):
     service = UserService(session)
-    user, deleted_url = await service.delete_photo(current.id, photo_id)
-    delete_upload_file(deleted_url, settings)
+    user = await service.delete_photo(current.id, photo_id)
     return _full_user(user)
 
 
@@ -120,9 +123,15 @@ async def upload_avatar(
     session: Annotated[AsyncSession, Depends(get_db)],
     settings: Annotated[Settings, Depends(get_settings)],
 ):
-    url = await validate_and_save_image(file, settings, subdirectory="avatars")
+    content, content_type, _ext = await read_validated_image(file, settings)
     service = UserService(session)
-    await service.update_user(current.id, profile_picture=url)
+    photo = await service.add_photo_blob(
+        current.id,
+        content,
+        content_type,
+        kind="avatar",
+    )
+    await service.update_user(current.id, profile_picture=photo.photo_url)
     user = await service.get_by_id(current.id)
     return _full_user(user)
 

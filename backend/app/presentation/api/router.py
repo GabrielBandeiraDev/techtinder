@@ -6,12 +6,14 @@ from app.presentation.api.routes import (
     feed,
     likes,
     matches,
+    media,
     skills,
     users,
 )
 
 api_router = APIRouter(prefix="/api/v1")
 api_router.include_router(auth.router)
+api_router.include_router(media.router)
 api_router.include_router(users.router)
 api_router.include_router(likes.router)
 api_router.include_router(matches.router)

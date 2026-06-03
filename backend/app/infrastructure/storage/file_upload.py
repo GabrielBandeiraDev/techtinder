@@ -1,4 +1,3 @@
-import uuid
 from pathlib import Path
 
 from fastapi import UploadFile
@@ -11,12 +10,19 @@ try:
 except ImportError:
     magic = None  # type: ignore[assignment]
 
+_EXT_TO_MIME = {
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png",
+    ".webp": "image/webp",
+}
 
-async def validate_and_save_image(
+
+async def read_validated_image(
     file: UploadFile,
     settings: Settings,
-    subdirectory: str = "photos",
-) -> str:
+) -> tuple[bytes, str, str]:
+    """Read upload, validate, return (bytes, content_type, extension)."""
     if not file.filename:
         raise ValidationError("Nome de arquivo inválido.")
 
@@ -39,18 +45,15 @@ async def validate_and_save_image(
         detected = magic.from_buffer(content, mime=True)
         if detected not in settings.allowed_image_mimes:
             raise ValidationError("Conteúdo do arquivo não corresponde a uma imagem válida.")
+        content_type = detected
+    else:
+        content_type = file.content_type or _EXT_TO_MIME.get(ext, "application/octet-stream")
 
-    upload_root = Path(settings.upload_dir) / subdirectory
-    upload_root.mkdir(parents=True, exist_ok=True)
-
-    safe_name = f"{uuid.uuid4().hex}{ext}"
-    dest = upload_root / safe_name
-    dest.write_bytes(content)
-
-    return f"/uploads/{subdirectory}/{safe_name}"
+    return content, content_type, ext
 
 
 def delete_upload_file(url: str | None, settings: Settings) -> None:
+    """Remove legacy files saved on disk before blob storage."""
     if not url or not url.startswith("/uploads/"):
         return
     relative = url.removeprefix("/uploads/")

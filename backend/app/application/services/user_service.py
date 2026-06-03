@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.domain.exceptions import NotFoundError, ValidationError
+from app.domain.media_paths import photo_media_path
 from app.infrastructure.db.models.skill import Skill, UserSkill
 from app.infrastructure.db.models.user import User, UserPhoto, UserProfile
 
@@ -80,52 +81,76 @@ class UserService:
         await self._session.refresh(profile)
         return profile
 
-    async def add_photo(
+    async def add_photo_blob(
         self,
         user_id: int,
-        photo_url: str,
+        content: bytes,
+        content_type: str,
+        *,
+        kind: str = "gallery",
         position: int | None = None,
     ) -> UserPhoto:
-        count = await self._session.scalar(
-            select(func.count())
-            .select_from(UserPhoto)
-            .where(UserPhoto.user_id == user_id)
+        if kind == "gallery":
+            count = await self._session.scalar(
+                select(func.count())
+                .select_from(UserPhoto)
+                .where(UserPhoto.user_id == user_id, UserPhoto.kind == "gallery")
+            )
+            if count and count >= 10:
+                raise ValidationError("Máximo de 10 fotos por perfil.")
+            if position is None:
+                position = count or 0
+        else:
+            if position is None:
+                position = 0
+            user = await self.get_by_id(user_id)
+            for old in [p for p in user.photos if p.kind == "avatar"]:
+                if user.profile_picture == old.photo_url:
+                    user.profile_picture = None
+                await self._session.delete(old)
+
+        photo = UserPhoto(
+            user_id=user_id,
+            content=content,
+            content_type=content_type,
+            kind=kind,
+            photo_url="",
+            position=position,
         )
-        if count and count >= 10:
-            raise ValidationError("Máximo de 10 fotos por perfil.")
-
-        if position is None:
-            position = count or 0
-
-        photo = UserPhoto(user_id=user_id, photo_url=photo_url, position=position)
         self._session.add(photo)
+        await self._session.flush()
+        photo.photo_url = photo_media_path(photo.id)
         await self._session.commit()
         await self._session.refresh(photo)
         return photo
 
-    async def delete_photo(self, user_id: int, photo_id: int) -> tuple[User, str | None]:
+    async def delete_photo(self, user_id: int, photo_id: int) -> User:
         user = await self.get_by_id(user_id)
         photo = next((p for p in user.photos if p.id == photo_id), None)
         if not photo:
             raise NotFoundError("Foto não encontrada.")
+        if photo.kind != "gallery":
+            raise ValidationError("Use outro fluxo para remover o avatar.")
 
         deleted_url = photo.photo_url
         await self._session.delete(photo)
 
         if user.profile_picture == deleted_url:
             remaining = sorted(
-                (p for p in user.photos if p.id != photo_id),
+                (p for p in user.photos if p.id != photo_id and p.kind == "gallery"),
                 key=lambda p: p.position,
             )
             user.profile_picture = remaining[0].photo_url if remaining else None
 
         await self._session.commit()
-        user = await self.get_by_id(user_id)
-        return user, deleted_url
+        return await self.get_by_id(user_id)
 
     async def set_primary_photo(self, user_id: int, photo_id: int) -> User:
         user = await self.get_by_id(user_id)
-        photo = next((p for p in user.photos if p.id == photo_id), None)
+        photo = next(
+            (p for p in user.photos if p.id == photo_id and p.kind == "gallery"),
+            None,
+        )
         if not photo:
             raise NotFoundError("Foto não encontrada.")
         user.profile_picture = photo.photo_url

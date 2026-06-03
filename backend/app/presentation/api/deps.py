@@ -71,6 +71,17 @@ async def get_current_user_full(
     return user
 
 
+def _gallery_photos_out(user: User) -> list[dict]:
+    gallery = sorted(
+        (p for p in user.photos if p.kind == "gallery"),
+        key=lambda p: p.position,
+    )
+    return [
+        {"id": p.id, "photo_url": p.photo_url, "position": p.position}
+        for p in gallery
+    ]
+
+
 def user_to_public(user: User) -> dict:
     skills = [
         {
@@ -90,7 +101,7 @@ def user_to_public(user: User) -> dict:
         "country": user.country,
         "bio": user.bio,
         "profile_picture": user.profile_picture,
-        "photos": user.photos,
+        "photos": _gallery_photos_out(user),
         "profile": user.profile,
         "skills": skills,
     }

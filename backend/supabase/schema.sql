@@ -43,6 +43,9 @@ CREATE TABLE IF NOT EXISTS user_photos (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     photo_url VARCHAR(512) NOT NULL,
+    content BYTEA,
+    content_type VARCHAR(64),
+    kind VARCHAR(16) NOT NULL DEFAULT 'gallery',
     position INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
